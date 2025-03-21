@@ -1,4 +1,4 @@
-from machine import Pin
+from machine import Pin # type: ignore
 import time
 
 led = Pin("LED", Pin.OUT)

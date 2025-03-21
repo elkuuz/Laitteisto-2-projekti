@@ -1,5 +1,5 @@
-from machine import Pin, I2C 
-from ssd1306 import SSD1306_I2C 
+from machine import Pin, I2C # type: ignore
+from ssd1306 import SSD1306_I2C # type: ignore
 
 i2c = I2C(1, scl=Pin(15), sda=Pin(14), freq=400000)
 oled_width = 128 

@@ -1,6 +1,6 @@
 import time
-from machine import Pin, I2C
-from ssd1306 import SSD1306_I2C
+from machine import Pin, I2C # type: ignore
+from ssd1306 import SSD1306_I2C # type: ignore
 
 SW0 = Pin(9, Pin.IN, Pin.PULL_UP)
 SW1 = Pin(8, Pin.IN, Pin.PULL_UP)
