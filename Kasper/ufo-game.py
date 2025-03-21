@@ -1,5 +1,5 @@
 import time, random
-from machine import UART, Pin, I2C, Timer, ADC # type: ignore
+from machine import Pin, I2C # type: ignore
 from ssd1306 import SSD1306_I2C # type: ignore
 button_3 = Pin(9, Pin.IN, Pin.PULL_UP)
 button_2 = Pin(8, Pin.IN, Pin.PULL_UP)
@@ -11,19 +11,21 @@ oled_height = 64
 oled = SSD1306_I2C(oled_width, oled_height, i2c)
 
 ufo = "<=>"
-position = 50
-speed = 1
 enemy = "V"
 bullet = "|"
 
-bullets = []
-enemy_list = []
+position = 50
+speed = 1
 score = 0
 enemy_interval = 1
 enemy_movement_cooldown = 40
-difficulty = 0
+difficulty_changed = 0
+
+bullets = []
+enemy_list = []
 
 gaming = True
+
 while gaming:
 
     oled.fill(0)
@@ -44,20 +46,20 @@ while gaming:
                     enemy_list.remove(e)
                     score += 1
                     if score == 5:
-                        difficulty = 1
+                        difficulty_changed = 1
                     elif score == 15:
-                        difficulty = 1
+                        difficulty_changed = 1
                     elif score == 25:
-                        difficulty = 1
+                        difficulty_changed = 1
                     elif score == 40:
-                        difficulty = 1
+                        difficulty_changed = 1
                     elif score == 50:
-                        difficulty = 1
-                    if difficulty == 1:
+                        difficulty_changed = 1
+                    if difficulty_changed == 1:
                         oled.text('SPEED UP', 45, 20)
                         oled.show()
-                        time.sleep(2)
-                        difficulty = 0
+                        time.sleep(1.5)
+                        difficulty_changed = 0
                     break
     
     oled.text('S:' + str(score), 0, 0)
@@ -112,9 +114,7 @@ while gaming:
         elif score >= 50:
             enemy_interval = 25
 
-    
     enemy_interval -= 1
-
     
 oled.fill(0)
 oled.text("Game Over", 25, 20)
