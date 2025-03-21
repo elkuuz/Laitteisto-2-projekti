@@ -24,9 +24,9 @@ oled.show()
 
 while True:
     # Check button states
-    if not SW0.value():  # SW0 pressed (move up)
+    if not SW2.value():  # SW0 pressed (move up)
         y = max(0, y - 1)  # Ensure y doesn't go above the screen
-    if not SW2.value():  # SW2 pressed (move down)
+    if not SW0.value():  # SW2 pressed (move down)
         y = min(oled_height - 1, y + 1)  # Ensure y doesn't go below the screen
     if not SW1.value():  # SW1 pressed (clear screen)
         oled.fill(0)  # Clear the screen
