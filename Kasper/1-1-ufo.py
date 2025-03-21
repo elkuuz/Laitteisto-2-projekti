@@ -33,15 +33,3 @@ while True:
 
         if position > 105:
             position = 105
-
-    if button_2.value() == 0:
-
-        oled.fill(0)
-        oled.text("Game Over", 20, 20)
-        oled.show()
-
-        time.sleep(2)
-
-        oled.fill(0)
-        oled.show()
-        break
