@@ -99,7 +99,7 @@ while gaming:
         bullets.append({'x': position + 8, 'y': 54})
         time.sleep(0.2)
    
-    if enemy_interval == 0:
+    if enemy_interval <= 0:
         enemy_list.append({'x': random.randrange(15,115), 'y': 0, 'cooldown': 40})
         if score < 5:
             enemy_interval = 150
