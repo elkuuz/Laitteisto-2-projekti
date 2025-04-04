@@ -1,12 +1,4 @@
-# Laitteisto-2-projekti
-
-## I will kys
-
-
-## shit to not forgor
-```python 
-import time 
-from machine import UART, Pin, I2C, Timer, ADC  # type: ignore
+from machine import Pin, I2C  # type: ignore
 from ssd1306 import SSD1306_I2C  # type: ignore
 
 i2c = I2C(1, scl=Pin(15), sda=Pin(14), freq=400000)
@@ -21,4 +13,4 @@ SW2 = Pin(7, Pin.IN, Pin.PULL_UP)
 ROTA = Pin(10, Pin.IN, Pin.PULL_UP)
 ROTB = Pin(11, Pin.IN, Pin.PULL_UP)
 ROT_push = Pin(12, Pin.IN, Pin.PULL_UP)
-```
+

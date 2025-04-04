@@ -10,12 +10,20 @@ oled_width = 128
 oled_height = 64
 oled = SSD1306_I2C(oled_width, oled_height, i2c)
 
+ROTA = Pin(10, Pin.IN, Pin.PULL_UP)
+ROTB = Pin(11, Pin.IN, Pin.PULL_UP)
+# Initialize variables
+
+ROT_push = Pin(12, Pin.IN, Pin.PULL_UP)
+
+
+
 ufo = "<=>"
 enemy = "V"
 bullet = "|"
 
 position = 50
-speed = 1
+speed = 5
 score = 0
 enemy_interval = 1
 enemy_movement_cooldown = 40
@@ -25,6 +33,35 @@ bullets = []
 enemy_list = []
 
 gaming = True
+
+def update_encoder(pin):
+    global last_state, counter
+    global position, speed
+    current_a = ROTA.value()
+    current_b = ROTB.value()
+    new_state = (current_a, current_b)
+
+    # Detect direction based on state transitions
+    if last_state == (0, 1) and new_state == (0, 0):
+        counter += 1  # Clockwise
+        position += speed
+
+        if position > 105:
+            position = 105
+    elif last_state == (1, 0) and new_state == (0, 0):
+        counter -= 1  # Counter-clockwise
+        position -= speed
+
+        if position < -1:
+            position = -1
+    last_state = new_state
+
+# Attach interrupts to both pins
+ROTA.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=update_encoder)
+ROTB.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=update_encoder)
+
+last_state = (ROTA.value(), ROTB.value())
+counter = 0
 
 while gaming:
 
@@ -81,21 +118,8 @@ while gaming:
     
     oled.show()
     
+
     if button_1.value() == 0:
-
-        position -= speed
-
-        if position < -1:
-            position = -1
-
-    if button_3.value() == 0:
-
-        position += speed
-
-        if position > 105:
-            position = 105
-
-    if button_2.value() == 0:
         bullets.append({'x': position + 8, 'y': 54})
         time.sleep(0.2)
    
