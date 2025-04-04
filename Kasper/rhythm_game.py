@@ -44,9 +44,9 @@ def update_encoder(pin):
         player_pos = 0
     elif player_pos > 3:
         player_pos = 3
-
+    print(f"Counter: {counter}, Player Position: {player_pos}")
     last_state = new_state
-
+    oled.show()
 # Attach interrupts to both pins
 ROTA.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=update_encoder)
 ROTB.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=update_encoder)
@@ -61,4 +61,4 @@ while True:
 
     oled.text(player, note_hit_zones[player_pos], 48)
     oled.text("_ _ _ _", 35, 50)
-    oled.show()
+    
