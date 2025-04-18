@@ -16,21 +16,25 @@ ROTA = Pin(10, Pin.IN, Pin.PULL_UP)
 ROTB = Pin(11, Pin.IN, Pin.PULL_UP)
 ROT_push = Pin(12, Pin.IN, Pin.PULL_UP)
 
+
+
 class Menu:
     def __init__(self, options, title="Menu"):
         self.options = options
         self.title = title
-        pass
+        self.selected_index = 0
     
     def scroll(self, direction):
-        if direction == -1:
-            self.options.insert(0, self.options.pop())
-        elif direction == 1:
-            self.options.append(self.options.pop(0))
-    
+        self.selected_index += direction
+        if self.selected_index < 0:
+            self.selected_index = len(self.options) - 1
+        elif self.selected_index >= len(self.options):
+            self.selected_index = 0
+
+        
     def option_select(self, option):
         if option == "MEASURE HR":
-            print("Measure HR")
+            self.measure_menu()
         elif option == "BASIC ANALYSIS":
             print("Basic Analysis")
         elif option == "KUBIOS":
@@ -40,7 +44,7 @@ class Menu:
     
     def display(self):
         oled.fill(0)
-        oled.text(">", 0, 20)
+        oled.text(">", 0, 20 + self.selected_index * 10)
         oled.text(f"{self.title}", 0, 0)
         for option in range(len(self.options)):
             oled.text(f"{self.options[option]}",10, 20 + option * 10)
@@ -54,15 +58,39 @@ class Menu:
             if not SW0.value():
                 self.scroll(1)
             if not SW1.value():
-                break
+                pass
             if not ROT_push.value():
-                self.option_select(self.options[0])
+                self.option_select(self.options[self.selected_index])
             self.display()
             time.sleep(0.1)
-
+          
+    def measure_menu(self):
+        oled.fill(0)
+        oled.text("MEASURE HR", 0, 0)
+        oled.text("Please wait...", 0, 20)
+        oled.show()
+        time.sleep(2)
+        oled.fill(0)
+        oled.text("HR MEASURED", 0, 20)
+        oled.text("Go Back(SW1)", 0, 40)
+        oled.text("Again(sW2)", 0, 10)
+        oled.show()
+        while True:
+            if not SW1.value():
+                return
+            elif not SW2.value():
+                self.measure()
+                break
     
-
-            
+    def measure(self):
+        oled.fill(0)
+        oled.text("MEASURING...", 0, 20)
+        oled.show()
+        time.sleep(2)
+        oled.fill(0)
+        oled.text("HR: 75 BPM", 0, 20)
+        oled.show()
+        time.sleep(2)
 menu = Menu(["MEASURE HR", "BASIC ANALYSIS", "KUBIOS", "HISTORY"], "Beat Buddy")
 
 menu.run()
