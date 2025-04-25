@@ -1,4 +1,4 @@
-from piotimer import Piotimer as Timer
+from piotimer import Piotimer as Timer # type: ignore
 from ssd1306 import SSD1306_I2C # type: ignore
 from machine import Pin, ADC, I2C, PWM # type: ignore
 from fifo import Fifo # type: ignore
@@ -9,7 +9,7 @@ import time
 #import socket
 #import urequests as requests
 import ujson # type: ignore
-
+import utime # type: ignore
 
 i2c = I2C(1, scl=Pin(15), sda=Pin(14), freq=400000)
 oled_width = 128
@@ -46,6 +46,7 @@ class Menu:
         self.options = options
         self.title = title
         self.selected_index = 0
+        self.history_selected_index = 0
 
     def scroll(self, direction):
         self.selected_index += direction
@@ -88,17 +89,44 @@ class Menu:
 
     def history(self):
         data = History().read_data()
-        oled.fill(0)
         while True:
+            oled.fill(0)
             if data:
+                data_length = len(data)
+                oled.text("History", 0, 0)
+                oled.text(">", 0, 10 + self.history_selected_index * 10)
                 for i, line in enumerate(data):
-                    oled.text(line.strip(), 0, 10 + i * 10)
+                    oled.text("Measurement " + str(i + 1), 10, 10 + i * 10)
+                
+                if not SW0.value():
+                    self.history_selected_index += 1
+                    if self.history_selected_index >= data_length:
+                        self.history_selected_index = 0
+                if not SW2.value():
+                    self.history_selected_index -= 1
+                    if self.history_selected_index < 0:
+                        self.history_selected_index = data_length - 1
+
+                
             else:
                 oled.text("No history found", 0, 10)
             oled.show()
-                    
+            if not ROT_push.value():
+                    while True:
+                        string_data = data[self.history_selected_index]
+                        selected_data = eval(string_data)
+                        oled.fill(0)
+                        oled.text("Selected Data", 0, 0)
+                        oled.text('MeanPPI:' + str(selected_data["MeanPPI"]) + 'ms', 0, 20, 1)
+                        print(selected_data)
+                        oled.show()
+                        if not SW1.value():
+                            time.sleep(0.1)
+                            break
+            time.sleep(0.05)
             if not SW1.value():
                 break
+            
     
     def measure_hr(self):
         pass
@@ -290,6 +318,7 @@ class Menu:
             oled.text('RMSSD:'+str(int(RMSSD)) + 'ms', 0, 27, 1)
             oled.text('SD1:'+str(int(SD1))+' SD2:'+str(int(SD2)), 0, 36, 1)
             data_dict = {
+                "Date": utime.localtime(),
                 "MeanPPI": int(mean_PPI),
                 "MeanHR": int(mean_HR),
                 "SDNN": int(SDNN),
@@ -315,9 +344,6 @@ class Menu:
                 break
 
 class History:
-    def __init__(self):
-        pass
-    
     def save_data(self, data):
         with open('sample_history.txt', 'a') as f:
             f.write(data + "\n")
@@ -326,12 +352,12 @@ class History:
         try:
             with open('sample_history.txt', 'r') as f:
                data = f.readlines()
-            print(data)
             return data
 
         except: 
             print("no file :(")
             return []
+        
     def delete_data(self):
         with open('sample_history.txt', 'w') as f:
             f.write("")
@@ -340,6 +366,5 @@ class History:
 
 menu = Menu(["MEASURE HR", "BASIC ANALYSIS",
             "KUBIOS", "HISTORY"], "Beat Buddy")
-
 
 menu.run()
