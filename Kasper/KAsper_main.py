@@ -102,10 +102,13 @@ class Menu:
             oled.fill(0)
             if data:
                 data_length = len(data)
+                if data_length > 5:
+                    History().delete_first_data()
+                    data = History().read_data()
                 oled.text("History", 0, 0)
                 oled.text(">", 0, 10 + self.history_selected_index * 10)
                 for i, line in enumerate(data):
-                    oled.text("Measurement " + str(i + 1), 10, 10 + i * 10)
+                    oled.text(str(eval(line)["Date"]), 10, 10 + i * 10)
                 
                 if not SW0.value():
                     self.history_selected_index += 1
@@ -126,14 +129,12 @@ class Menu:
                         selected_data = eval(string_data)
                         oled.fill(0)
                         oled.text("Selected Data", 0, 0)
-                        oled.text("Date:" + str(selected_data["Date"]), 0, 9, 1)
+                        oled.text(str(selected_data["Date"]), 0, 9, 1)
                         oled.text('MeanPPI:' + str(selected_data["MeanPPI"]) + 'ms', 0, 27, 1)
                         oled.text('MeanHR:' + str(selected_data["MeanHR"]) + 'bpm', 0, 18, 1)
                         oled.text('SDNN:'+str(selected_data["SDNN"]) + 'ms', 0, 36, 1)
                         oled.text('RMSSD:'+str(selected_data["RMSSD"]) + 'ms', 0, 45, 1)
                         oled.text('SD1:'+str(selected_data["SD1"])+' SD2:'+str(selected_data["SD2"]), 0, 54, 1)
-                        print(selected_data)
-                        print(time.localtime())
                         oled.show()
                         if not SW1.value():
                             time.sleep(0.1)
@@ -332,8 +333,15 @@ class Menu:
             oled.text('SDNN:'+str(int(SDNN)) + 'ms', 0, 18, 1)
             oled.text('RMSSD:'+str(int(RMSSD)) + 'ms', 0, 27, 1)
             oled.text('SD1:'+str(int(SD1))+' SD2:'+str(int(SD2)), 0, 36, 1)
+        
+            year = time.localtime()[0]
+            month = time.localtime()[1]
+            day = time.localtime()[2]
+            hour = time.localtime()[3]
+            minute_fake = time.localtime()[4]
+            minute_real = f"{minute_fake:02d}"
             data_dict = {
-                "Date": time.localtime(),
+                "Date": str(hour) + ":" + str(minute_real) + " " +  str(day) + "." + str(month) + "." + str(year) ,
                 "MeanPPI": int(mean_PPI),
                 "MeanHR": int(mean_HR),
                 "SDNN": int(SDNN),
@@ -377,6 +385,14 @@ class History:
         with open('sample_history.txt', 'w') as f:
             f.write("")
         return "History cleared"
+    
+    def delete_first_data(self):
+        with open('sample_history.txt', 'r') as f:
+            lines = f.readlines()
+        with open('sample_history.txt', 'w') as f:
+            for line in lines[1:]:
+                f.write(line)
+        return "First line deleted"
 
 class Kubios:
     def __init__(self):
