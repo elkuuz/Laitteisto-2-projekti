@@ -9,7 +9,10 @@ import time
 #import socket
 #import urequests as requests
 import ujson # type: ignore
-import utime # type: ignore
+
+
+WIFI_SSID = "KMD661_GROUP_MAMUT"
+WIFI_PASSWORD = "BlaxicanCocaineSS"
 
 i2c = I2C(1, scl=Pin(15), sda=Pin(14), freq=400000)
 oled_width = 128
@@ -88,6 +91,12 @@ class Menu:
             time.sleep(0.1)
 
     def history(self):
+        oled.fill(0)
+        oled.text("History", 32, 20, 1)
+        oled.text("loading", 32, 30, 1)
+        oled.rect(27, 15, 69, 30, 1) 
+        oled.show()
+        time.sleep(0.5)
         data = History().read_data()
         while True:
             oled.fill(0)
@@ -117,13 +126,19 @@ class Menu:
                         selected_data = eval(string_data)
                         oled.fill(0)
                         oled.text("Selected Data", 0, 0)
-                        oled.text('MeanPPI:' + str(selected_data["MeanPPI"]) + 'ms', 0, 20, 1)
+                        oled.text("Date:" + str(selected_data["Date"]), 0, 9, 1)
+                        oled.text('MeanPPI:' + str(selected_data["MeanPPI"]) + 'ms', 0, 27, 1)
+                        oled.text('MeanHR:' + str(selected_data["MeanHR"]) + 'bpm', 0, 18, 1)
+                        oled.text('SDNN:'+str(selected_data["SDNN"]) + 'ms', 0, 36, 1)
+                        oled.text('RMSSD:'+str(selected_data["RMSSD"]) + 'ms', 0, 45, 1)
+                        oled.text('SD1:'+str(selected_data["SD1"])+' SD2:'+str(selected_data["SD2"]), 0, 54, 1)
                         print(selected_data)
+                        print(time.localtime())
                         oled.show()
                         if not SW1.value():
                             time.sleep(0.1)
                             break
-            time.sleep(0.05)
+            time.sleep(0.1)
             if not SW1.value():
                 break
             
@@ -318,7 +333,7 @@ class Menu:
             oled.text('RMSSD:'+str(int(RMSSD)) + 'ms', 0, 27, 1)
             oled.text('SD1:'+str(int(SD1))+' SD2:'+str(int(SD2)), 0, 36, 1)
             data_dict = {
-                "Date": utime.localtime(),
+                "Date": time.localtime(),
                 "MeanPPI": int(mean_PPI),
                 "MeanHR": int(mean_HR),
                 "SDNN": int(SDNN),
@@ -356,13 +371,19 @@ class History:
 
         except: 
             print("no file :(")
-            return []
+            return
         
     def delete_data(self):
         with open('sample_history.txt', 'w') as f:
             f.write("")
         return "History cleared"
 
+class Kubios:
+    def __init__(self):
+        pass
+
+    def run(self):
+        pass
 
 menu = Menu(["MEASURE HR", "BASIC ANALYSIS",
             "KUBIOS", "HISTORY"], "Beat Buddy")
