@@ -9,6 +9,8 @@ oled = ssd1306.SSD1306_I2C(128, 64, i2c)
 
 # Hardware setup
 led_pins = [Pin(20, Pin.OUT), Pin(21, Pin.OUT), Pin(22, Pin.OUT)]
+for led in led_pins:
+    led.off()
 encoder_clk = Pin(10, Pin.IN, Pin.PULL_UP)
 encoder_dt = Pin(11, Pin.IN, Pin.PULL_UP)
 encoder_sw = Pin(12, Pin.IN, Pin.PULL_UP)
