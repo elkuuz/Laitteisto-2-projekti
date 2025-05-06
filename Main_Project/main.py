@@ -160,7 +160,6 @@ class Menu:
                         oled.text('MeanHR:' + str(selected_data["MeanHR"]) + 'bpm', 0, 18, 1)
                         oled.text('SDNN:'+str(selected_data["SDNN"]) + 'ms', 0, 36, 1)
                         oled.text('RMSSD:'+str(selected_data["RMSSD"]) + 'ms', 0, 45, 1)
-                        oled.text('SD1:'+str(selected_data["SD1"])+' SD2:'+str(selected_data["SD2"]), 0, 54, 1)
                         oled.show()
                         if not SW1.value():
                             time.sleep(0.1)
@@ -427,7 +426,7 @@ class Menu:
             oled.text(f"Mean PPI: {mean_PPI} ms", 0, 20)
             oled.text(f"SDNN: {SDNN} ms", 0, 30)
             oled.text(f"RMSSD: {RMSSD} ms", 0, 40)
-            oled.text("Press SW1 to go back", 0, 50)
+            oled.text("SW1 to go back", 0, 50)
             oled.show()
 
         
