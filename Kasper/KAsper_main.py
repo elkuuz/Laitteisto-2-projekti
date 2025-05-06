@@ -5,7 +5,7 @@ from fifo import Fifo # type: ignore
 import utime # type: ignore
 import array
 import time
-#import network
+import network # type: ignore
 #import socket
 #import urequests as requests
 import ujson # type: ignore
@@ -78,6 +78,7 @@ class Menu:
         oled.show()
 
     def run(self):
+        self.start_phase()
         while True:
             if not SW2.value():
                 self.scroll(-1)
@@ -90,6 +91,28 @@ class Menu:
             self.display()
             time.sleep(0.1)
 
+    def start_phase(self):
+        oled.fill(0)
+        oled.text("Beat Buddy 3000", 0, 15, 1)
+        oled.text("Starting up", 0, 30, 1)
+        oled.show()
+        wlan = network.WLAN(network.STA_IF)
+        wlan.active(True)
+        wlan.connect(WIFI_SSID, WIFI_PASSWORD)
+        breakpoint = 0
+        # Attempt to connect once per second
+        while wlan.isconnected() == False:
+            print("Connecting... ")
+            time.sleep(1)
+            breakpoint += 1
+            if breakpoint > 10:
+                oled.fill(0)
+                oled.text("No internet :(", 0, 15, 1)
+                oled.show()
+                time.sleep(2)
+                break
+        return
+    
     def history(self):
         oled.fill(0)
         oled.text("History", 32, 20, 1)
