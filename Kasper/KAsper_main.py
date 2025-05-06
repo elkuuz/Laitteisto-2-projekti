@@ -9,7 +9,7 @@ import network # type: ignore
 #import socket
 #import urequests as requests
 import ujson # type: ignore
-
+import ntptime
 
 WIFI_SSID = "KMD661_GROUP_MAMUT"
 WIFI_PASSWORD = "BlaxicanCocaineSS"
@@ -111,6 +111,9 @@ class Menu:
                 oled.show()
                 time.sleep(2)
                 break
+        if wlan.isconnected():
+            ntptime.settime()
+            print(time.localtime())
         return
     
     def history(self):
@@ -241,7 +244,7 @@ class Menu:
 
         disp_div = samplerate / 25
         disp_count = 0
-        capture_length = samplerate * 60
+        capture_length = samplerate * 30
 
         index = 0
         capture_count = 0
