@@ -1,15 +1,15 @@
-from piotimer import Piotimer as Timer # type: ignore
-from ssd1306 import SSD1306_I2C # type: ignore
-from machine import Pin, ADC, I2C, PWM # type: ignore
-from fifo import Fifo # type: ignore
-import utime # type: ignore
+from piotimer import Piotimer as Timer  # type: ignore
+from ssd1306 import SSD1306_I2C  # type: ignore
+from machine import Pin, ADC, I2C, PWM  # type: ignore
+from fifo import Fifo  # type: ignore
+import utime  # type: ignore
 import array
 import time
 import network # type: ignore
 #import socket
 #import urequests as requests
 import ujson # type: ignore
-import ntptime
+import ntptime # type: ignore
 
 WIFI_SSID = "KMD661_GROUP_MAMUT"
 WIFI_PASSWORD = "BlaxicanCocaineSS"
@@ -171,7 +171,71 @@ class Menu:
             
     
     def measure_hr(self):
-        pass
+        capture_count = 0
+        sample_peak = 0
+        sample_index = 0
+        previous_index = 0
+        min_bpm = 30
+        max_bpm = 200
+        PPI_array = []
+        interval_ms = 0
+
+        oled.fill(0)
+        oled.text("Measuring HR", 0, 0)
+        oled.show()
+
+        # Timer to read ADC data
+        tmr = Timer(freq=samplerate, callback=self.read_adc)
+
+        try:
+            while True:
+                if not samples.empty():
+                    x = samples.get()
+                    capture_count += 1
+
+                    # Detect peaks
+                    if len(PPI_array) > 0 and x > (sum(PPI_array) / len(PPI_array)) * 1.05:
+                        if x > sample_peak:
+                            sample_peak = x
+                            sample_index = capture_count
+                    else:
+                        if sample_peak > 0:
+                            if (sample_index - previous_index) > (60 * samplerate / min_bpm):
+                                previous_index = sample_index
+                            else:
+                                if (sample_index - previous_index) > (60 * samplerate / max_bpm):
+                                    interval = sample_index - previous_index
+                                    interval_ms = int(interval * 1000 / samplerate)
+                                    PPI_array.append(interval_ms)
+                                    previous_index = sample_index
+
+                        sample_peak = 0
+
+                    # Calculate and display HR
+                    if len(PPI_array) > 1:
+                        mean_PPI = self.meanPPI_calculator(PPI_array)
+                        actual_HR = self.meanHR_calculator(mean_PPI)
+                        oled.fill(0)
+                        oled.text(f"HR: {actual_HR} bpm", 0, 0)
+                        oled.text("Keep finger on sensor", 0, 10)
+                        oled.show()
+
+                else:
+                    # Debugging message if no samples are available
+                    oled.fill(0)
+                    oled.text("Waiting for data...", 0, 0)
+                    oled.show()
+
+                # Exit condition
+                if not SW1.value():
+                    break
+
+        finally:
+            tmr.deinit()
+            oled.fill(0)
+            oled.text("Measurement Ended", 0, 0)
+            oled.show()
+
     def meanPPI_calculator(self, data):
         sumPPI = 0
         for i in data:
@@ -217,14 +281,6 @@ class Menu:
         second = (second_value/(len(PP_array)))**2
         rounded_SDSD = round((first - second)**(1/2), 0)
         return int(rounded_SDSD)
-    
-    def SD1_calculator(self, SDSD):
-        rounded_SD1 = round(((SDSD**2)/2)**(1/2), 0)
-        return int(rounded_SD1)
-
-    def SD2_calculator(self, SDNN, SDSD):
-        rounded_SD2 = round(((2*(SDNN**2))-((SDSD**2)/2))**(1/2), 0)
-        return int(rounded_SD2)
 
     def read_adc(self, tid):
         x = adc.read_u16()
@@ -245,6 +301,7 @@ class Menu:
         disp_div = samplerate / 25
         disp_count = 0
         capture_length = samplerate * 30
+        ignore_samples = 5 * samplerate  # Ignore the first 5 seconds of data
 
         index = 0
         capture_count = 0
@@ -265,100 +322,114 @@ class Menu:
         # Bind the read_adc method to the current instance
         tmr = Timer(freq=samplerate, callback=self.read_adc)
 
-        while capture_count < capture_length:
-            if not samples.empty():
-                x = samples.get()
-                disp_count += 1
+        try:
+            while capture_count < capture_length:
+                if not samples.empty():
+                    x = samples.get()
+                    capture_count += 1
 
-                if disp_count >= disp_div:
-                    disp_count = 0
-                    m0 = (1 - a) * m0 + a * x
-                    y2 = int(32 * (m0 - x) / 14000 + 35)
-                    y2 = max(10, min(53, y2))
-                    x2 = x1 + 1
-                    oled.fill_rect(0, 0, 128, 9, 1)
-                    oled.fill_rect(0, 55, 128, 64, 1)
-                    if len(PPI_array) > 3:
-                        actual_PPI = self.meanPPI_calculator(PPI_array)
-                        actual_HR = self.meanHR_calculator(actual_PPI)
-                        oled.text(f'HR:{actual_HR}', 2, 1, 0)
-                        oled.text(f'PPI:{interval_ms}', 60, 1, 0)
-                    oled.text(
-                        f'Timer:  {int(capture_count/samplerate)}s', 18, 56, 0)
-                    oled.line(x2, 10, x2, 53, 0)
-                    oled.line(x1, y1, x2, y2, 1)
+                    # Skip processing for the first 5 seconds
+                    if capture_count <= ignore_samples:
+                        continue
+                    disp_count += 1
+
+                    if disp_count >= disp_div:
+                        disp_count = 0
+                        m0 = (1 - a) * m0 + a * x
+                        y2 = int(32 * (m0 - x) / 14000 + 35)
+                        y2 = max(10, min(53, y2))
+                        x2 = x1 + 1
+                        oled.fill_rect(0, 0, 128, 9, 1)
+                        oled.fill_rect(0, 55, 128, 64, 1)
+                        if len(PPI_array) > 3:
+                            actual_PPI = self.meanPPI_calculator(PPI_array)
+                            actual_HR = self.meanHR_calculator(actual_PPI)
+                            oled.text(f'HR:{actual_HR}', 2, 1, 0)
+                            oled.text(f'PPI:{interval_ms}', 60, 1, 0)
+                        oled.text(
+                            f'Timer:  {int(capture_count / samplerate)}s', 18, 56, 0)
+                        oled.line(x2, 10, x2, 53, 0)
+                        oled.line(x1, y1, x2, y2, 1)
+                        oled.show()
+                        x1 = x2
+                        if x1 > 127:
+                            x1 = -1
+                        y1 = y2
+
+                    if subtract_old_sample:
+                        old_sample = buffer[index]
+                    else:
+                        old_sample = 0
+                    sample_sum = sample_sum + x - old_sample
+
+                    if subtract_old_sample:
+                        sample_avg = sample_sum / avg_size
+                        sample_val = x
+                        if sample_val > (sample_avg * 1.05):
+                            if sample_val > sample_peak:
+                                sample_peak = sample_val
+                                sample_index = capture_count
+
+                        else:
+                            if sample_peak > 0:
+                                if (sample_index - previous_index) > (60 * samplerate / min_bpm):
+                                    previous_peak = 0
+                                    previous_index = sample_index
+                                else:
+                                    if sample_peak >= (previous_peak * 0.8):
+                                        if (sample_index - previous_index) > (60 * samplerate / max_bpm):
+                                            if previous_peak > 0:
+                                                interval = sample_index - previous_index
+                                                interval_ms = int(
+                                                    interval * 1000 / samplerate)
+                                                PPI_array.append(interval_ms)
+                                                brightness = 5
+                                                led21.duty_u16(4000)
+                                            previous_peak = sample_peak
+                                            previous_index = sample_index
+                            sample_peak = 0
+
+                        if brightness > 0:
+                            brightness -= 1
+                        else:
+                            led21.duty_u16(0)
+
+                    buffer[index] = x
+                    index += 1
+                    if index >= avg_size:
+                        index = 0
+                        subtract_old_sample = 1
+
+                # Check if the rotary encoder button is pressed
+                if not SW1.value():
+                    oled.fill(0)
+                    oled.text("Analysis Cancelled", 0, 0)
                     oled.show()
-                    x1 = x2
-                    if x1 > 127:
-                        x1 = -1
-                    y1 = y2
+                    time.sleep(1)
+                    time.sleep(0.5)  # Debounce delay
+                    break
 
-                if subtract_old_sample:
-                    old_sample = buffer[index]
-                else:
-                    old_sample = 0
-                sample_sum = sample_sum + x - old_sample
-
-                if subtract_old_sample:
-                    sample_avg = sample_sum / avg_size
-                    sample_val = x
-                    if sample_val > (sample_avg * 1.05):
-                        if sample_val > sample_peak:
-                            sample_peak = sample_val
-                            sample_index = capture_count
-
-                    else:
-                        if sample_peak > 0:
-                            if (sample_index - previous_index) > (60 * samplerate / min_bpm):
-                                previous_peak = 0
-                                previous_index = sample_index
-                            else:
-                                if sample_peak >= (previous_peak*0.8):
-                                    if (sample_index - previous_index) > (60 * samplerate / max_bpm):
-                                        if previous_peak > 0:
-                                            interval = sample_index - previous_index
-                                            interval_ms = int(
-                                                interval * 1000 / samplerate)
-                                            PPI_array.append(interval_ms)
-                                            brightness = 5
-                                            led21.duty_u16(4000)
-                                        previous_peak = sample_peak
-                                        previous_index = sample_index
-                        sample_peak = 0
-
-                    if brightness > 0:
-                        brightness -= 1
-                    else:
-                        led21.duty_u16(0)
-
-                buffer[index] = x
-                capture_count += 1
-                index += 1
-                if index >= avg_size:
-                    index = 0
-                    subtract_old_sample = 1
-
-        tmr.deinit()
+        finally:
+            tmr.deinit()
 
         while not samples.empty():
             x = samples.get()
             
-        #HRV calculation
-        oled.fill(0)
-        if len(PPI_array) >= 3:
+        if len(PPI_array) > 1:
             mean_PPI = self.meanPPI_calculator(PPI_array)
             mean_HR = self.meanHR_calculator(mean_PPI)
             SDNN = self.SDNN_calculator(PPI_array, mean_PPI)
             RMSSD = self.RMSSD_calculator(PPI_array)
-            SDSD = self.SDSD_calculator(PPI_array)
-            SD1 = self.SD1_calculator(SDSD)
-            SD2 = self.SD2_calculator(SDNN, SDSD)
 
-            oled.text('MeanPPI:' + str(int(mean_PPI)) + 'ms', 0, 0, 1)
-            oled.text('MeanHR:' + str(int(mean_HR)) + 'bpm', 0, 9, 1)
-            oled.text('SDNN:'+str(int(SDNN)) + 'ms', 0, 18, 1)
-            oled.text('RMSSD:'+str(int(RMSSD)) + 'ms', 0, 27, 1)
-            oled.text('SD1:'+str(int(SD1))+' SD2:'+str(int(SD2)), 0, 36, 1)
+            # Display the calculated stats
+            oled.fill(0)
+            oled.text(f"Mean HR: {mean_HR} bpm", 0, 10)
+            oled.text(f"Mean PPI: {mean_PPI} ms", 0, 20)
+            oled.text(f"SDNN: {SDNN} ms", 0, 30)
+            oled.text(f"RMSSD: {RMSSD} ms", 0, 40)
+            oled.text("Press SW1 to go back", 0, 50)
+            oled.show()
+
         
             year = time.localtime()[0]
             month = time.localtime()[1]
@@ -372,24 +443,20 @@ class Menu:
                 "MeanHR": int(mean_HR),
                 "SDNN": int(SDNN),
                 "RMSSD": int(RMSSD),
-                "SD1": int(SD1),
-                "SD2": int(SD2)
             }
             History().save_data(
                 f'{data_dict}')
         else:
-            oled.text('Error', 45, 10, 1)
-            oled.text('Please restart', 8, 30, 1)
-            oled.text('measurement', 20, 40, 1)
-        oled.show()
+            # Display a message if insufficient data
+            oled.fill(0)
+            oled.text("Insufficient Data", 0, 0)
+            oled.text("Try Again", 0, 10)
+            oled.show()
+
+        # Wait for SW1 press to return to the menu
         while True:
-            if not SW0.value():
-                break
-            if not SW1.value():
-                break
-            if not SW2.value():
-                break
-            if not ROT_push.value():
+            if not SW1.value():  # Wait for SW1 button press
+                time.sleep(0.5)  # Debounce delay
                 break
 
 class History:
