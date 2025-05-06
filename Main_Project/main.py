@@ -62,7 +62,8 @@ class Menu:
         if option == "MEASURE HR":
             self.measure_hr()
         elif option == "BASIC ANALYSIS":
-            self.basic_analysis()
+            analysis = Analysis()
+            analysis.basic_analysis()
         elif option == "KUBIOS":
             print("Kubios")
         elif option == "HISTORY":
@@ -234,7 +235,7 @@ class Menu:
             oled.fill(0)
             oled.text("Measurement Ended", 0, 0)
             oled.show()
-
+class Analysis:
     def meanPPI_calculator(self, data):
         sumPPI = 0
         for i in data:
@@ -299,7 +300,7 @@ class Menu:
 
         disp_div = samplerate / 25
         disp_count = 0
-        capture_length = samplerate * 30
+        capture_length = samplerate * 35
         ignore_samples = 5 * samplerate  # Ignore the first 5 seconds of data
 
         index = 0
@@ -317,7 +318,7 @@ class Menu:
         PPI_array = []
 
         brightness = 0
-
+        show_oled = 0
         # Bind the read_adc method to the current instance
         tmr = Timer(freq=samplerate, callback=self.read_adc)
 
@@ -329,6 +330,12 @@ class Menu:
 
                     # Skip processing for the first 5 seconds
                     if capture_count <= ignore_samples:
+                        if show_oled == 0:
+                            show_oled = 1
+                            oled.fill(0)
+                            oled.text("Place finger", 0, 0)
+                            oled.text("on sensor", 0, 10)
+                            oled.show()
                         continue
                     disp_count += 1
 
@@ -346,7 +353,7 @@ class Menu:
                             oled.text(f'HR:{actual_HR}', 2, 1, 0)
                             oled.text(f'PPI:{interval_ms}', 60, 1, 0)
                         oled.text(
-                            f'Timer:  {int(capture_count / samplerate)}s', 18, 56, 0)
+                            f'Timer:  {int(capture_count / samplerate) - 5}s', 18, 56, 0)
                         oled.line(x2, 10, x2, 53, 0)
                         oled.line(x1, y1, x2, y2, 1)
                         oled.show()
@@ -433,7 +440,7 @@ class Menu:
             year = time.localtime()[0]
             month = time.localtime()[1]
             day = time.localtime()[2]
-            hour = time.localtime()[3]
+            hour = time.localtime()[3] + 3
             minute_fake = time.localtime()[4]
             minute_real = f"{minute_fake:02d}"
             data_dict = {
@@ -493,6 +500,8 @@ class Kubios:
     def run(self):
         pass
 
+    def send_data(self, data):
+        pass
 menu = Menu(["MEASURE HR", "BASIC ANALYSIS",
             "KUBIOS", "HISTORY"], "Beat Buddy")
 
