@@ -141,64 +141,70 @@ class Menu:
                 break
 
     def measure_hr(self):
-        def measure_hr(self):
-            capture_count = 0
-            sample_peak = 0
-            sample_index = 0
-            previous_index = 0
-            min_bpm = 30
-            max_bpm = 200
-            PPI_array = []
-            interval_ms = 0
+        capture_count = 0
+        sample_peak = 0
+        sample_index = 0
+        previous_index = 0
+        min_bpm = 30
+        max_bpm = 200
+        PPI_array = []
+        interval_ms = 0
 
-            oled.fill(0)
-            oled.text("Measuring HR", 0, 0)
-            oled.show()
+        oled.fill(0)
+        oled.text("Measuring HR", 0, 0)
+        oled.show()
 
-            # Timer to read ADC data
-            tmr = Timer(freq=samplerate, callback=self.read_adc)
+        # Timer to read ADC data
+        tmr = Timer(freq=samplerate, callback=self.read_adc)
 
-            try:
-                while True:
-                    if not samples.empty():
-                        x = samples.get()
-                        capture_count += 1
+        try:
+            while True:
+                if not samples.empty():
+                    x = samples.get()
+                    capture_count += 1
 
-                        # Detect peaks
-                        if len(PPI_array) > 0 and x > (sum(PPI_array) / len(PPI_array)) * 1.05:
-                            if x > sample_peak:
-                                sample_peak = x
-                                sample_index = capture_count
-                        else:
-                            if sample_peak > 0:
-                                if (sample_index - previous_index) > (60 * samplerate / min_bpm):
+                    # Detect peaks
+                    if len(PPI_array) > 0 and x > (sum(PPI_array) / len(PPI_array)) * 1.05:
+                        if x > sample_peak:
+                            sample_peak = x
+                            sample_index = capture_count
+                    else:
+                        if sample_peak > 0:
+                            if (sample_index - previous_index) > (60 * samplerate / min_bpm):
+                                previous_index = sample_index
+                            else:
+                                if (sample_index - previous_index) > (60 * samplerate / max_bpm):
+                                    interval = sample_index - previous_index
+                                    interval_ms = int(interval * 1000 / samplerate)
+                                    PPI_array.append(interval_ms)
                                     previous_index = sample_index
-                                else:
-                                    if (sample_index - previous_index) > (60 * samplerate / max_bpm):
-                                        interval = sample_index - previous_index
-                                        interval_ms = int(interval * 1000 / samplerate)
-                                        PPI_array.append(interval_ms)
-                                        previous_index = sample_index
 
-                            sample_peak = 0
+                        sample_peak = 0
 
-                        # Calculate and display HR
-                        if len(PPI_array) > 1:
-                            mean_PPI = self.meanPPI_calculator(PPI_array)
-                            actual_HR = self.meanHR_calculator(mean_PPI)
-                            oled.fill(0)
-                            oled.text(f"HR: {actual_HR} bpm", 0, 0)
-                            oled.show()
+                    # Calculate and display HR
+                    if len(PPI_array) > 1:
+                        mean_PPI = self.meanPPI_calculator(PPI_array)
+                        actual_HR = self.meanHR_calculator(mean_PPI)
+                        oled.fill(0)
+                        oled.text(f"HR: {actual_HR} bpm", 0, 0)
+                        oled.text("Keep finger on sensor", 0, 10)
+                        oled.show()
 
-                    # Exit condition
-                    if not SW1.value():
-                        break
+                else:
+                    # Debugging message if no samples are available
+                    oled.fill(0)
+                    oled.text("Waiting for data...", 0, 0)
+                    oled.show()
 
-            finally:
-                tmr.deinit()
-                oled.fill(0)
-                oled.text("Measurement Ended", 0, 0)
-                oled.show()
+                # Exit condition
+                if not SW1.value():
+                    break
+
+        finally:
+            tmr.deinit()
+            oled.fill(0)
+            oled.text("Measurement Ended", 0, 0)
+            oled.show()
 
     def meanPPI_calculator(self, data):
         sumPPI = 0
@@ -272,7 +278,7 @@ class Menu:
 
         disp_div = samplerate / 25
         disp_count = 0
-        capture_length = samplerate * 60
+        capture_length = samplerate * 30
         ignore_samples = 5 * samplerate  # Ignore the first 5 seconds of data
 
         index = 0
@@ -387,10 +393,33 @@ class Menu:
             while not samples.empty():
                 x = samples.get()
 
-            oled.fill(0)
-            oled.text("Returning to Menu", 0, 0)
-            oled.show()
-            time.sleep(1)
+            # Calculate metrics if PPI_array has enough data
+            if len(PPI_array) > 1:
+                mean_PPI = self.meanPPI_calculator(PPI_array)
+                mean_HR = self.meanHR_calculator(mean_PPI)
+                SDNN = self.SDNN_calculator(PPI_array, mean_PPI)
+                RMSSD = self.RMSSD_calculator(PPI_array)
+
+                # Display the calculated stats
+                oled.fill(0)
+                oled.text(f"Mean HR: {mean_HR} bpm", 0, 10)
+                oled.text(f"Mean PPI: {mean_PPI} ms", 0, 20)
+                oled.text(f"SDNN: {SDNN} ms", 0, 30)
+                oled.text(f"RMSSD: {RMSSD} ms", 0, 40)
+                oled.show()
+
+            else:
+                # Display a message if insufficient data
+                oled.fill(0)
+                oled.text("Insufficient Data", 0, 0)
+                oled.text("Try Again", 0, 10)
+                oled.show()
+
+            # Wait for SW1 press to return to the menu
+            while True:
+                if not SW1.value():  # Wait for SW1 button press
+                    time.sleep(0.5)  # Debounce delay
+                    break
 
 
 class History:
