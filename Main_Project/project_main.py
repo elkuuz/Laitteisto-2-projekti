@@ -252,14 +252,6 @@ class Menu:
         rounded_SDSD = round((first - second) ** (1 / 2), 0)
         return int(rounded_SDSD)
 
-    def SD1_calculator(self, SDSD):
-        rounded_SD1 = round(((SDSD ** 2) / 2) ** (1 / 2), 0)
-        return int(rounded_SD1)
-
-    def SD2_calculator(self, SDNN, SDSD):
-        rounded_SD2 = round(((2 * (SDNN ** 2)) - ((SDSD ** 2) / 2)) ** (1 / 2), 0)
-        return int(rounded_SD2)
-
     def read_adc(self, tid):
         x = adc.read_u16()
         samples.put(x)
