@@ -60,14 +60,16 @@ class Menu:
         elif option == "BASIC ANALYSIS":
             analysis.basic_analysis()
         elif option == "KUBIOS":
-            print("Kubios")
+            Kubios().run()
         elif option == "HISTORY":
             self.history()
 
     def display(self):
         oled.fill(0)
         oled.text(">", 0, 20 + self.selected_index * 10)
-        oled.text(f"{self.title}", 0, 0)
+        oled.fill_rect(0, 0, 128, 15, 1)
+
+        oled.text(f"{self.title}",4, 4, 0)
         for option in range(len(self.options)):
             oled.text(f"{self.options[option]}", 10, 20 + option * 10)
 
@@ -276,7 +278,7 @@ class Analysis:
             oled.fill(0)
             oled.text("Measurement Ended", 0, 0)
             oled.show()
-    def basic_analysis(self):
+    def basic_analysis(self, kubios=False):
 
         oled.fill(0)
         oled.show()
@@ -328,12 +330,14 @@ class Analysis:
                         x2 = x1 + 1
                         oled.fill_rect(0, 0, 128, 9, 1)
                         oled.fill_rect(0, 55, 128, 64, 1)
-                        if len(PPI_array) > 3:
+                        if len(PPI_array) > 3 and not kubios:
                             mean_PPI = self.meanPPI_calculator(PPI_array)
                             mean_HR = self.meanHR_calculator(mean_PPI)
                             current_HR = self.current_HR_calculator(PPI_array)
                             oled.text(f'HR:{current_HR}', 2, 1, 0)
                             oled.text(f'PPI:{interval_ms}', 60, 1, 0)
+                        elif kubios:
+                            oled.text('Gathering data', 2, 1, 0)
                         oled.text(
                             f'Timer:  {int(capture_count / samplerate) - 5}s', 18, 56, 0)
                         oled.line(x2, 10, x2, 53, 0)
@@ -400,7 +404,8 @@ class Analysis:
         while not samples.empty():
             sample_val = samples.get()
             
-        if len(PPI_array) > 1:
+        if len(PPI_array) > 1 and not kubios:
+            # Calculate the statistics
             mean_PPI = self.meanPPI_calculator(PPI_array)
             mean_HR = self.meanHR_calculator(mean_PPI)
             SDNN = self.SDNN_calculator(PPI_array, mean_PPI)
@@ -431,6 +436,8 @@ class Analysis:
             }
             History().save_data(
                 f'{data_dict}')
+        elif kubios:
+            return_data = {"id": 1, "data": PPI_array}
         else:
             # Display a message if insufficient data
             oled.fill(0)
@@ -476,11 +483,11 @@ class Kubios:
         pass
 
     def run(self):
-        pass
+        Analysis().basic_analysis(kubios=True)
 
     def send_data(self, data):
         pass
 menu = Menu(["MEASURE HR", "BASIC ANALYSIS",
-            "KUBIOS", "HISTORY"], "Beat Buddy")
+            "KUBIOS", "HISTORY"], "Beat Buddy 3000")
 
 menu.run()
