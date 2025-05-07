@@ -490,17 +490,18 @@ class Kubios:
     def __init__(self):
         self.mqtt_client = None
         self.kubios_response = None
-
+        self.wlan = None
+        
     def connect_to_mqtt(self):
         try:
-            wlan = network.WLAN(network.STA_IF)
-            wlan.active(True)
-            wlan.connect(WIFI_SSID, WIFI_PASSWORD)
-            self.mqtt_client = MQTTClient("KubiosClient", "192.168.8.253", 1883)
+            self.wlan = network.WLAN(network.STA_IF)
+            self.wlan.active(True)
+            self.wlan.connect(WIFI_SSID, WIFI_PASSWORD)
+            self.mqtt_client = MQTTClient("KubiosClient", "192.168.8.253", 21883)
             self.mqtt_client.connect()
             self.mqtt_client.set_callback(self.kubios_response_callback)
             self.mqtt_client.subscribe("kubios-response")
-            print("Great Success")
+            print("Connected to MQTT successfully")
         except Exception as e:
             print(f"Failed to connect to MQTT: {e}")
     
@@ -510,21 +511,93 @@ class Kubios:
             print(f"Received response: {self.kubios_response}")
         except Exception as e:
             print(f"Failed to parse response: {e}")
-    def run(self):
-        self.connect_to_mqtt()
-        self.send_data(self.test_message)
-        # kubios_data = Analysis().basic_analysis(kubios=True)
-        # if kubios_data:
-        #     self.send_data(kubios_data)
 
+    def test_connection(self):
+        print("Testing Kubios connection...")
+        if self.wlan.status() != 3:
+            print("WiFi is not connected!")
+            return False
+            
+        kubios_data = Analysis().basic_analysis(kubios=True)
+        self.mqtt_client.publish("kubios-request", kubios_data)
+        print("Sent test message")
+        
+        for attempt in range(4):
+            time.sleep(0.5)
+            self.mqtt_client.check_msg()
+            if self.kubios_response and self.kubios_response.get("id") == 420:
+                print("Kubios connection is working")
+                return True
+                
+        print("No valid response from Kubios")
+        return False
+        
     def send_data(self, data):
-        message = ujson.dumps(data)
         try:
+            message = ujson.dumps(data)
             self.mqtt_client.publish("kubios-request", message)
-            print("Data sent to Kubios")
+            print("Data sent to Kubios successfully")
         except Exception as e:
             print(f"Failed to send data: {e}")
 
+    def run(self):
+        self.connect_to_mqtt()
+        if self.test_connection():
+            # If connection test passes, you can proceed with real data
+            # kubios_data = Analysis().basic_analysis(kubios=True)
+            # if kubios_data:
+            #     self.send_data(kubios_data)
+            self.show_output(self.kubios_response)
+            pass
+        else:
+            oled.fill(0)
+            oled.text("Kubios", 0, 0)
+            oled.text("Connection", 0, 10)
+            oled.text("Failed", 0, 20)
+            oled.show()
+            time.sleep(2)
+            return
+    def show_output(self, data):
+        try:
+            # Safely extract data with error checking
+            analysis = data.get("data", {}).get("analysis", {})
+            
+            # Round values with fallback in case of missing data
+            kubios_mean_hr = round(analysis.get("mean_hr_bpm", 0), 0)
+            kubios_mean_ppi = round(analysis.get("mean_rr_ms", 0), 0)
+            kubios_sdnn = round(analysis.get("sdnn_ms", 0), 0)
+            kubios_rmssd = round(analysis.get("rmssd_ms", 0), 0)
+            kubios_sns = round(analysis.get("sns_index", 0), 3)
+            kubios_pns = round(analysis.get("pns_index", 0), 3)
+            
+            # Clear display
+            oled.fill(0)
+            
+            # Display rounded values
+            oled.text(f"Mean HR: {int(kubios_mean_hr)}bpm", 0, 0)
+            oled.text(f"Mean PPI: {int(kubios_mean_ppi)}ms", 0, 10)
+            oled.text(f"SDNN: {int(kubios_sdnn)}ms", 0, 20)
+            oled.text(f"RMSSD: {int(kubios_rmssd)}ms", 0, 30)
+            oled.text(f"SNS: {kubios_sns:.3f}", 0, 40)  # Keep 3 decimal places
+            oled.text(f"PNS: {kubios_pns:.3f}", 0, 50)  # Keep 3 decimal places
+            
+            oled.show()
+            
+            # Wait for button press (with debounce)
+            while True:
+                if not SW1.value():
+                    time.sleep(0.5)  # Debounce delay
+                    break
+                time.sleep(0.1)
+                
+        except Exception as e:
+            print(f"[ERROR] Failed to display output: {e}")
+            oled.fill(0)
+            oled.text("Display Error", 0, 0)
+            oled.text("Check Data", 0, 20)
+            oled.show()
+        
+            
 
 menu = Menu(["MEASURE HR", "BASIC ANALYSIS",
             "KUBIOS", "HISTORY"], "Beat Buddy 3000")
