@@ -39,8 +39,6 @@ samples = Fifo(32)
 avg_size = 128
 buffer = array.array('H',[0]*avg_size)
 
-
-
 class Menu:
     def __init__(self, options, title="Menu"):
         self.options = options
@@ -172,15 +170,21 @@ class Menu:
             
 class Analysis:
     def meanPPI_calculator(self, data):
-        sumPPI = 0
-        for i in data:
-            sumPPI += i
-        rounded_PPI = round(sumPPI/len(data), 0)
-        return int(rounded_PPI)
+        if not data:  # Handle empty list
+            return 0
+        return int(round(sum(data) / len(data), 0))
 
     def meanHR_calculator(self, meanPPI):
-        rounded_HR = round(60*1000/meanPPI, 0)
-        return int(rounded_HR)
+        if meanPPI <= 0:  # Avoid division by zero
+            return 0
+        hr = 60_000 / meanPPI
+        return int(round(hr, 0))
+        
+    def current_HR_calculator(self, PPI_array):
+        if len(PPI_array) < 1:
+            return 0
+        latest_PPI = PPI_array[-1]  # Use the most recent PPI
+        return int(round(60_000 / latest_PPI, 0))
     
     def SDNN_calculator(self, data, PPI):
         summary = 0
@@ -198,24 +202,6 @@ class Analysis:
             i += 1
         rounded_RMSSD = round((summary/(len(data)-1))**(1/2), 0)
         return int(rounded_RMSSD)
-
-    def SDSD_calculator(self, data):
-        PP_array = array.array('l')
-        i = 0
-        first_value = 0
-        second_value = 0
-        while i < len(data)-1:
-            PP_array.append(int(data[i+1])-int(data[i]))
-            i += 1
-        i = 0
-        while i < len(PP_array)-1:
-            first_value += float(PP_array[i]**2)
-            second_value += float(PP_array[i])
-            i += 1
-        first = first_value/(len(PP_array)-1)
-        second = (second_value/(len(PP_array)))**2
-        rounded_SDSD = round((first - second)**(1/2), 0)
-        return int(rounded_SDSD)
 
     def read_adc(self, tid):
         x = adc.read_u16()
@@ -266,6 +252,7 @@ class Analysis:
                     # Calculate and display HR
                     if len(PPI_array) > 1:
                         mean_PPI = self.meanPPI_calculator(PPI_array)
+                        print(f"PPI_array: {PPI_array} ms")
                         actual_HR = self.meanHR_calculator(mean_PPI)
                         oled.fill(0)
                         oled.text(f"HR: {actual_HR} bpm", 0, 0)
@@ -294,18 +281,16 @@ class Analysis:
 
         x1 = -1
         y1 = 32
-        m0 = 65535 / 2
-        a = 1 / 10
+        m0 = 32768
+        a = 0.1
 
         disp_div = samplerate / 25
         disp_count = 0
         capture_length = samplerate * 35
         ignore_samples = 5 * samplerate  # Ignore the first 5 seconds of data
-
-        index = 0
+        
         capture_count = 0
-        subtract_old_sample = 0
-        sample_sum = 0
+        sample_sum = index = subtract_old_sample = 0
 
         min_bpm = 30
         max_bpm = 200
@@ -317,63 +302,57 @@ class Analysis:
         PPI_array = []
 
         brightness = 0
-        show_oled = 0
+        oled.fill(0)
+        oled.text("Place finger", 0, 0)
+        oled.text("on sensor", 0, 10)
+        oled.show()
+        
         # Bind the read_adc method to the current instance
         tmr = Timer(freq=samplerate, callback=self.read_adc)
 
         try:
             while capture_count < capture_length:
                 if not samples.empty():
-                    x = samples.get()
+                    sample_val = samples.get()
                     capture_count += 1
 
                     # Skip processing for the first 5 seconds
                     if capture_count <= ignore_samples:
-                        if show_oled == 0:
-                            show_oled = 1
-                            oled.fill(0)
-                            oled.text("Place finger", 0, 0)
-                            oled.text("on sensor", 0, 10)
-                            oled.show()
                         continue
                     disp_count += 1
 
                     if disp_count >= disp_div:
                         disp_count = 0
-                        m0 = (1 - a) * m0 + a * x
-                        y2 = int(32 * (m0 - x) / 14000 + 35)
-                        y2 = max(10, min(53, y2))
+                        m0 = (1 - a) * m0 + a * sample_val
+                        y2 = max(10, min(53, int(32 * (m0 - sample_val) * (1/14000) + 35)))
                         x2 = x1 + 1
                         oled.fill_rect(0, 0, 128, 9, 1)
                         oled.fill_rect(0, 55, 128, 64, 1)
                         if len(PPI_array) > 3:
-                            actual_PPI = self.meanPPI_calculator(PPI_array)
-                            actual_HR = self.meanHR_calculator(actual_PPI)
-                            oled.text(f'HR:{actual_HR}', 2, 1, 0)
+                            mean_PPI = self.meanPPI_calculator(PPI_array)
+                            mean_HR = self.meanHR_calculator(mean_PPI)
+                            current_HR = self.current_HR_calculator(PPI_array)
+                            oled.text(f'HR:{current_HR}', 2, 1, 0)
                             oled.text(f'PPI:{interval_ms}', 60, 1, 0)
                         oled.text(
                             f'Timer:  {int(capture_count / samplerate) - 5}s', 18, 56, 0)
                         oled.line(x2, 10, x2, 53, 0)
                         oled.line(x1, y1, x2, y2, 1)
                         oled.show()
-                        x1 = x2
-                        if x1 > 127:
-                            x1 = -1
+                        x1 = x2 if x2 <= 127 else -1
                         y1 = y2
 
                     if subtract_old_sample:
                         old_sample = buffer[index]
                     else:
                         old_sample = 0
-                    sample_sum = sample_sum + x - old_sample
+                    sample_sum += sample_val - old_sample
 
                     if subtract_old_sample:
                         sample_avg = sample_sum / avg_size
-                        sample_val = x
                         if sample_val > (sample_avg * 1.05):
                             if sample_val > sample_peak:
-                                sample_peak = sample_val
-                                sample_index = capture_count
+                                sample_peak, sample_index = sample_val, capture_count
 
                         else:
                             if sample_peak > 0:
@@ -399,7 +378,7 @@ class Analysis:
                         else:
                             led21.duty_u16(0)
 
-                    buffer[index] = x
+                    buffer[index] = sample_val
                     index += 1
                     if index >= avg_size:
                         index = 0
@@ -419,7 +398,7 @@ class Analysis:
             tmr.deinit()
 
         while not samples.empty():
-            x = samples.get()
+            sample_val = samples.get()
             
         if len(PPI_array) > 1:
             mean_PPI = self.meanPPI_calculator(PPI_array)
@@ -459,11 +438,10 @@ class Analysis:
             oled.text("Try Again", 0, 10)
             oled.show()
 
-        # Wait for SW1 press to return to the menu
-        while True:
-            if not SW1.value():  # Wait for SW1 button press
-                time.sleep(0.5)  # Debounce delay
-                break
+        # Wait for exit
+        while SW1.value():
+            pass
+        time.sleep(0.5)  # Debounce
 
 class History:
     def save_data(self, data):
