@@ -169,6 +169,10 @@ class Menu:
                 break
             
 class Analysis:
+    def __init__(self):
+        self.min_bpm = 30
+        self.max_bpm = 200
+    
     def meanPPI_calculator(self, data):
         if not data:  # Handle empty list
             return 0
@@ -213,8 +217,6 @@ class Analysis:
         sample_peak = 0
         sample_index = 0
         previous_index = 0
-        min_bpm = 30
-        max_bpm = 200
         PPI_array = []
         interval_ms = 0
 
@@ -238,10 +240,10 @@ class Analysis:
                             sample_index = capture_count
                     else:
                         if sample_peak > 0:
-                            if (sample_index - previous_index) > (60 * samplerate / min_bpm):
+                            if (sample_index - previous_index) > (60 * samplerate / self.min_bpm):
                                 previous_index = sample_index
                             else:
-                                if (sample_index - previous_index) > (60 * samplerate / max_bpm):
+                                if (sample_index - previous_index) > (60 * samplerate / self.max_bpm):
                                     interval = sample_index - previous_index
                                     interval_ms = int(interval * 1000 / samplerate)
                                     PPI_array.append(interval_ms)
@@ -292,8 +294,6 @@ class Analysis:
         capture_count = 0
         sample_sum = index = subtract_old_sample = 0
 
-        min_bpm = 30
-        max_bpm = 200
         sample_peak = 0
         sample_index = 0
         previous_peak = 0
@@ -356,12 +356,12 @@ class Analysis:
 
                         else:
                             if sample_peak > 0:
-                                if (sample_index - previous_index) > (60 * samplerate / min_bpm):
+                                if (sample_index - previous_index) > (60 * samplerate / self.min_bpm):
                                     previous_peak = 0
                                     previous_index = sample_index
                                 else:
                                     if sample_peak >= (previous_peak * 0.8):
-                                        if (sample_index - previous_index) > (60 * samplerate / max_bpm):
+                                        if (sample_index - previous_index) > (60 * samplerate / self.max_bpm):
                                             if previous_peak > 0:
                                                 interval = sample_index - previous_index
                                                 interval_ms = int(
