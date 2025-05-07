@@ -36,9 +36,6 @@ adc = ADC(26)
 samplerate = 250
 samples = Fifo(32)
 
-count = 0
-switch_state = 0
-
 avg_size = 128
 buffer = array.array('H',[0]*avg_size)
 
@@ -59,10 +56,10 @@ class Menu:
             self.selected_index = 0
 
     def option_select(self, option):
+        analysis = Analysis()
         if option == "MEASURE HR":
-            self.measure_hr()
+            analysis.measure_hr()
         elif option == "BASIC ANALYSIS":
-            analysis = Analysis()
             analysis.basic_analysis()
         elif option == "KUBIOS":
             print("Kubios")
@@ -101,20 +98,24 @@ class Menu:
         wlan.active(True)
         wlan.connect(WIFI_SSID, WIFI_PASSWORD)
         breakpoint = 0
-        # Attempt to connect once per second
+        # Attempt to connect once per half second for 5 seconds
         while wlan.isconnected() == False:
             print("Connecting... ")
-            time.sleep(1)
+            time.sleep(0.5)
             breakpoint += 1
-            if breakpoint > 10:
+            if breakpoint >= 10:
                 oled.fill(0)
-                oled.text("No internet :(", 0, 15, 1)
+                oled.text("No internet", 0, 15, 1)
+                oled.text("Kubios analysis", 0, 30, 1)
+                oled.text("not available", 0, 40, 1)
                 oled.show()
                 time.sleep(2)
                 break
         if wlan.isconnected():
-            ntptime.settime()
             print(time.localtime())
+            if time.localtime()[0] < 2025:
+                ntptime.settime()
+
         return
     
     def history(self):
@@ -169,6 +170,57 @@ class Menu:
             if not SW1.value():
                 break
             
+class Analysis:
+    def meanPPI_calculator(self, data):
+        sumPPI = 0
+        for i in data:
+            sumPPI += i
+        rounded_PPI = round(sumPPI/len(data), 0)
+        return int(rounded_PPI)
+
+    def meanHR_calculator(self, meanPPI):
+        rounded_HR = round(60*1000/meanPPI, 0)
+        return int(rounded_HR)
+    
+    def SDNN_calculator(self, data, PPI):
+        summary = 0
+        for i in data:
+            summary += (i-PPI)**2
+        SDNN = (summary/(len(data)-1))**(1/2)
+        rounded_SDNN = round(SDNN, 0)
+        return int(rounded_SDNN)
+    
+    def RMSSD_calculator(self, data):
+        i = 0
+        summary = 0
+        while i < len(data)-1:
+            summary += (data[i+1]-data[i])**2
+            i += 1
+        rounded_RMSSD = round((summary/(len(data)-1))**(1/2), 0)
+        return int(rounded_RMSSD)
+
+    def SDSD_calculator(self, data):
+        PP_array = array.array('l')
+        i = 0
+        first_value = 0
+        second_value = 0
+        while i < len(data)-1:
+            PP_array.append(int(data[i+1])-int(data[i]))
+            i += 1
+        i = 0
+        while i < len(PP_array)-1:
+            first_value += float(PP_array[i]**2)
+            second_value += float(PP_array[i])
+            i += 1
+        first = first_value/(len(PP_array)-1)
+        second = (second_value/(len(PP_array)))**2
+        rounded_SDSD = round((first - second)**(1/2), 0)
+        return int(rounded_SDSD)
+
+    def read_adc(self, tid):
+        x = adc.read_u16()
+        samples.put(x)
+        
     
     def measure_hr(self):
         capture_count = 0
@@ -235,60 +287,7 @@ class Menu:
             oled.fill(0)
             oled.text("Measurement Ended", 0, 0)
             oled.show()
-class Analysis:
-    def meanPPI_calculator(self, data):
-        sumPPI = 0
-        for i in data:
-            sumPPI += i
-        rounded_PPI = round(sumPPI/len(data), 0)
-        return int(rounded_PPI)
-
-    def meanHR_calculator(self, meanPPI):
-        rounded_HR = round(60*1000/meanPPI, 0)
-        return int(rounded_HR)
-    
-    def SDNN_calculator(self, data, PPI):
-        summary = 0
-        for i in data:
-            summary += (i-PPI)**2
-        SDNN = (summary/(len(data)-1))**(1/2)
-        rounded_SDNN = round(SDNN, 0)
-        return int(rounded_SDNN)
-    
-    def RMSSD_calculator(self, data):
-        i = 0
-        summary = 0
-        while i < len(data)-1:
-            summary += (data[i+1]-data[i])**2
-            i += 1
-        rounded_RMSSD = round((summary/(len(data)-1))**(1/2), 0)
-        return int(rounded_RMSSD)
-
-    def SDSD_calculator(self, data):
-        PP_array = array.array('l')
-        i = 0
-        first_value = 0
-        second_value = 0
-        while i < len(data)-1:
-            PP_array.append(int(data[i+1])-int(data[i]))
-            i += 1
-        i = 0
-        while i < len(PP_array)-1:
-            first_value += float(PP_array[i]**2)
-            second_value += float(PP_array[i])
-            i += 1
-        first = first_value/(len(PP_array)-1)
-        second = (second_value/(len(PP_array)))**2
-        rounded_SDSD = round((first - second)**(1/2), 0)
-        return int(rounded_SDSD)
-
-    def read_adc(self, tid):
-        x = adc.read_u16()
-        samples.put(x)
-        
     def basic_analysis(self):
-        count = 0
-        switch_state = 0
 
         oled.fill(0)
         oled.show()
@@ -409,7 +408,8 @@ class Analysis:
                 # Check if the rotary encoder button is pressed
                 if not SW1.value():
                     oled.fill(0)
-                    oled.text("Analysis Cancelled", 0, 0)
+                    oled.text("Analysis ", 0, 0)
+                    oled.text("Cancelled", 0, 10)
                     oled.show()
                     time.sleep(1)
                     time.sleep(0.5)  # Debounce delay
