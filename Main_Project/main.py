@@ -2,14 +2,8 @@ from piotimer import Piotimer as Timer  # type: ignore
 from ssd1306 import SSD1306_I2C  # type: ignore
 from machine import Pin, ADC, I2C, PWM  # type: ignore
 from fifo import Fifo  # type: ignore
-import utime  # type: ignore
-import array
-import time
-import network  # type: ignore
-# import socket
-# import urequests as requests
-import ujson  # type: ignore
-import ntptime  # type: ignore
+import array, time, network, ujson, ntptime  # type: ignore
+from umqtt.simple import MQTTClient  # type: ignore
 
 WIFI_SSID = "KMD661_GROUP_MAMUT"
 WIFI_PASSWORD = "BlaxicanCocaineSS"
@@ -113,7 +107,6 @@ class Menu:
                 time.sleep(2)
                 break
         if wlan.isconnected():
-            print(time.localtime())
             if time.localtime()[0] < 2025:
                 ntptime.settime()
 
@@ -443,7 +436,10 @@ class Analysis:
             History().save_data(
                 f'{data_dict}')
         elif kubios:
-            return_data = {"id": 1, "data": PPI_array}
+            kubios_data = {"id": 420, "type": "PPI", "data": PPI_array, "analysis": {"type": "readiness"}}
+            kubios_data_json = ujson.dumps(kubios_data)
+            print(kubios_data_json)
+            return kubios_data_json
         else:
             # Display a message if insufficient data
             oled.fill(0)
@@ -487,14 +483,47 @@ class History:
 
 
 class Kubios:
-    def __init__(self):
-        pass
+    test_message = '''{ "id": 999,"type": "PPI",
+        "data": [828, 836, 852, 760, 800, 796, 856, 824, 808, 776, 724, 816, 800, 812, 812, 812, 756, 820, 812, 800],
+        "analysis": { "type": "readiness" } }''' 
 
+    def __init__(self):
+        self.mqtt_client = None
+        self.kubios_response = None
+
+    def connect_to_mqtt(self):
+        try:
+            wlan = network.WLAN(network.STA_IF)
+            wlan.active(True)
+            wlan.connect(WIFI_SSID, WIFI_PASSWORD)
+            self.mqtt_client = MQTTClient("KubiosClient", "192.168.8.253", 1883)
+            self.mqtt_client.connect()
+            self.mqtt_client.set_callback(self.kubios_response_callback)
+            self.mqtt_client.subscribe("kubios-response")
+            print("Great Success")
+        except Exception as e:
+            print(f"Failed to connect to MQTT: {e}")
+    
+    def kubios_response_callback(self, topic, msg):
+        try:
+            self.kubios_response = ujson.loads(msg)
+            print(f"Received response: {self.kubios_response}")
+        except Exception as e:
+            print(f"Failed to parse response: {e}")
     def run(self):
-        Analysis().basic_analysis(kubios=True)
+        self.connect_to_mqtt()
+        self.send_data(self.test_message)
+        # kubios_data = Analysis().basic_analysis(kubios=True)
+        # if kubios_data:
+        #     self.send_data(kubios_data)
 
     def send_data(self, data):
-        pass
+        message = ujson.dumps(data)
+        try:
+            self.mqtt_client.publish("kubios-request", message)
+            print("Data sent to Kubios")
+        except Exception as e:
+            print(f"Failed to send data: {e}")
 
 
 menu = Menu(["MEASURE HR", "BASIC ANALYSIS",
