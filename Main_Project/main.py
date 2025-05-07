@@ -5,11 +5,11 @@ from fifo import Fifo  # type: ignore
 import utime  # type: ignore
 import array
 import time
-import network # type: ignore
-#import socket
-#import urequests as requests
-import ujson # type: ignore
-import ntptime # type: ignore
+import network  # type: ignore
+# import socket
+# import urequests as requests
+import ujson  # type: ignore
+import ntptime  # type: ignore
 
 WIFI_SSID = "KMD661_GROUP_MAMUT"
 WIFI_PASSWORD = "BlaxicanCocaineSS"
@@ -37,7 +37,8 @@ samplerate = 250
 samples = Fifo(32)
 
 avg_size = 128
-buffer = array.array('H',[0]*avg_size)
+buffer = array.array('H', [0]*avg_size)
+
 
 class Menu:
     def __init__(self, options, title="Menu"):
@@ -69,7 +70,7 @@ class Menu:
         oled.text(">", 0, 20 + self.selected_index * 10)
         oled.fill_rect(0, 0, 128, 15, 1)
 
-        oled.text(f"{self.title}",4, 4, 0)
+        oled.text(f"{self.title}", 4, 4, 0)
         for option in range(len(self.options)):
             oled.text(f"{self.options[option]}", 10, 20 + option * 10)
 
@@ -117,12 +118,12 @@ class Menu:
                 ntptime.settime()
 
         return
-    
+
     def history(self):
         oled.fill(0)
         oled.text("History", 32, 20, 1)
         oled.text("loading", 32, 30, 1)
-        oled.rect(27, 15, 69, 30, 1) 
+        oled.rect(27, 15, 69, 30, 1)
         oled.show()
         time.sleep(0.5)
         data = History().read_data()
@@ -137,7 +138,7 @@ class Menu:
                 oled.text(">", 0, 10 + self.history_selected_index * 10)
                 for i, line in enumerate(data):
                     oled.text(str(eval(line)["Date"]), 10, 10 + i * 10)
-                
+
                 if not SW0.value():
                     self.history_selected_index += 1
                     if self.history_selected_index >= data_length:
@@ -147,34 +148,38 @@ class Menu:
                     if self.history_selected_index < 0:
                         self.history_selected_index = data_length - 1
 
-                
             else:
                 oled.text("No history found", 0, 10)
             oled.show()
             if not ROT_push.value():
-                    while True:
-                        string_data = data[self.history_selected_index]
-                        selected_data = eval(string_data)
-                        oled.fill(0)
-                        oled.text("Selected Data", 0, 0)
-                        oled.text(str(selected_data["Date"]), 0, 9, 1)
-                        oled.text('MeanPPI:' + str(selected_data["MeanPPI"]) + 'ms', 0, 27, 1)
-                        oled.text('MeanHR:' + str(selected_data["MeanHR"]) + 'bpm', 0, 18, 1)
-                        oled.text('SDNN:'+str(selected_data["SDNN"]) + 'ms', 0, 36, 1)
-                        oled.text('RMSSD:'+str(selected_data["RMSSD"]) + 'ms', 0, 45, 1)
-                        oled.show()
-                        if not SW1.value():
-                            time.sleep(0.1)
-                            break
+                while True:
+                    string_data = data[self.history_selected_index]
+                    selected_data = eval(string_data)
+                    oled.fill(0)
+                    oled.text("Selected Data", 0, 0)
+                    oled.text(str(selected_data["Date"]), 0, 9, 1)
+                    oled.text(
+                        'MeanPPI:' + str(selected_data["MeanPPI"]) + 'ms', 0, 27, 1)
+                    oled.text(
+                        'MeanHR:' + str(selected_data["MeanHR"]) + 'bpm', 0, 18, 1)
+                    oled.text(
+                        'SDNN:'+str(selected_data["SDNN"]) + 'ms', 0, 36, 1)
+                    oled.text(
+                        'RMSSD:'+str(selected_data["RMSSD"]) + 'ms', 0, 45, 1)
+                    oled.show()
+                    if not SW1.value():
+                        time.sleep(0.1)
+                        break
             time.sleep(0.1)
             if not SW1.value():
                 break
-            
+
+
 class Analysis:
     def __init__(self):
         self.min_bpm = 30
         self.max_bpm = 200
-    
+
     def meanPPI_calculator(self, data):
         if not data:  # Handle empty list
             return 0
@@ -185,13 +190,13 @@ class Analysis:
             return 0
         hr = 60_000 / meanPPI
         return int(round(hr, 0))
-        
+
     def current_HR_calculator(self, PPI_array):
         if len(PPI_array) < 1:
             return 0
         latest_PPI = PPI_array[-1]  # Use the most recent PPI
         return int(round(60_000 / latest_PPI, 0))
-    
+
     def SDNN_calculator(self, data, PPI):
         summary = 0
         for i in data:
@@ -199,7 +204,7 @@ class Analysis:
         SDNN = (summary/(len(data)-1))**(1/2)
         rounded_SDNN = round(SDNN, 0)
         return int(rounded_SDNN)
-    
+
     def RMSSD_calculator(self, data):
         i = 0
         summary = 0
@@ -212,8 +217,7 @@ class Analysis:
     def read_adc(self, tid):
         x = adc.read_u16()
         samples.put(x)
-        
-    
+
     def measure_hr(self):
         capture_count = 0
         sample_peak = 0
@@ -247,7 +251,8 @@ class Analysis:
                             else:
                                 if (sample_index - previous_index) > (60 * samplerate / self.max_bpm):
                                     interval = sample_index - previous_index
-                                    interval_ms = int(interval * 1000 / samplerate)
+                                    interval_ms = int(
+                                        interval * 1000 / samplerate)
                                     PPI_array.append(interval_ms)
                                     previous_index = sample_index
 
@@ -278,6 +283,7 @@ class Analysis:
             oled.fill(0)
             oled.text("Measurement Ended", 0, 0)
             oled.show()
+
     def basic_analysis(self, kubios=False):
 
         oled.fill(0)
@@ -292,7 +298,7 @@ class Analysis:
         disp_count = 0
         capture_length = samplerate * 35
         ignore_samples = 5 * samplerate  # Ignore the first 5 seconds of data
-        
+
         capture_count = 0
         sample_sum = index = subtract_old_sample = 0
 
@@ -308,7 +314,7 @@ class Analysis:
         oled.text("Place finger", 0, 0)
         oled.text("on sensor", 0, 10)
         oled.show()
-        
+
         # Bind the read_adc method to the current instance
         tmr = Timer(freq=samplerate, callback=self.read_adc)
 
@@ -326,7 +332,8 @@ class Analysis:
                     if disp_count >= disp_div:
                         disp_count = 0
                         m0 = (1 - a) * m0 + a * sample_val
-                        y2 = max(10, min(53, int(32 * (m0 - sample_val) * (1/14000) + 35)))
+                        y2 = max(
+                            10, min(53, int(32 * (m0 - sample_val) * (1/14000) + 35)))
                         x2 = x1 + 1
                         oled.fill_rect(0, 0, 128, 9, 1)
                         oled.fill_rect(0, 55, 128, 64, 1)
@@ -403,7 +410,7 @@ class Analysis:
 
         while not samples.empty():
             sample_val = samples.get()
-            
+
         if len(PPI_array) > 1 and not kubios:
             # Calculate the statistics
             mean_PPI = self.meanPPI_calculator(PPI_array)
@@ -420,7 +427,6 @@ class Analysis:
             oled.text("SW1 to go back", 0, 50)
             oled.show()
 
-        
             year = time.localtime()[0]
             month = time.localtime()[1]
             day = time.localtime()[2]
@@ -428,7 +434,7 @@ class Analysis:
             minute_fake = time.localtime()[4]
             minute_real = f"{minute_fake:02d}"
             data_dict = {
-                "Date": str(hour) + ":" + str(minute_real) + " " +  str(day) + "." + str(month) + "." + str(year) ,
+                "Date": str(hour) + ":" + str(minute_real) + " " + str(day) + "." + str(month) + "." + str(year),
                 "MeanPPI": int(mean_PPI),
                 "MeanHR": int(mean_HR),
                 "SDNN": int(SDNN),
@@ -450,6 +456,7 @@ class Analysis:
             pass
         time.sleep(0.5)  # Debounce
 
+
 class History:
     def save_data(self, data):
         with open('sample_history.txt', 'a') as f:
@@ -458,18 +465,18 @@ class History:
     def read_data(self):
         try:
             with open('sample_history.txt', 'r') as f:
-               data = f.readlines()
+                data = f.readlines()
             return data
 
-        except: 
+        except:
             print("no file :(")
             return
-        
+
     def delete_data(self):
         with open('sample_history.txt', 'w') as f:
             f.write("")
         return "History cleared"
-    
+
     def delete_first_data(self):
         with open('sample_history.txt', 'r') as f:
             lines = f.readlines()
@@ -477,6 +484,7 @@ class History:
             for line in lines[1:]:
                 f.write(line)
         return "First line deleted"
+
 
 class Kubios:
     def __init__(self):
@@ -487,6 +495,8 @@ class Kubios:
 
     def send_data(self, data):
         pass
+
+
 menu = Menu(["MEASURE HR", "BASIC ANALYSIS",
             "KUBIOS", "HISTORY"], "Beat Buddy 3000")
 

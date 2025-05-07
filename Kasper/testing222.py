@@ -1,25 +1,2 @@
-import network
-from time import sleep
-
-# Replace these values with your own
-SSID = "KMD661_GROUP_MAMUT"
-PASSWORD = "BlaxicanCocaineSS"
-BROKER_IP = "192.168.1.254"
-
-# Function to connect to WLAN
-def connect_wlan():
-    # Connecting to the group WLAN
-    wlan = network.WLAN(network.STA_IF)
-    wlan.active(True)
-    wlan.connect(SSID, PASSWORD)
-
-    # Attempt to connect once per second
-    while wlan.isconnected() == False:
-        print("Connecting... ")
-        sleep(1)
-
-    # Print the IP address of the Pico
-    print("Connection successful. Pico IP:", wlan.ifconfig()[0])
-
-# Main program
-connect_wlan()
+PPI_array = [1132, 940, 848, 924, 1148, 1064, 1020, 1076, 1056, 992, 1060, 1120,
+             1008, 992, 1024, 1052, 960, 1080, 1132, 1036, 1068, 1104, 1020, 1020, 1096, 1028]
