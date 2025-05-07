@@ -483,10 +483,6 @@ class History:
 
 
 class Kubios:
-    test_message = '''{ "id": 999,"type": "PPI",
-        "data": [828, 836, 852, 760, 800, 796, 856, 824, 808, 776, 724, 816, 800, 812, 812, 812, 756, 820, 812, 800],
-        "analysis": { "type": "readiness" } }''' 
-
     def __init__(self):
         self.mqtt_client = None
         self.kubios_response = None
@@ -540,13 +536,15 @@ class Kubios:
         except Exception as e:
             print(f"Failed to send data: {e}")
 
+    def loading_screen(self):
+        oled.fill(0)
+        oled.text("Loading", 0, 0)
+        oled.show()
+        time.sleep(0.2)
     def run(self):
+        self.loading_screen()
         self.connect_to_mqtt()
         if self.test_connection():
-            # If connection test passes, you can proceed with real data
-            # kubios_data = Analysis().basic_analysis(kubios=True)
-            # if kubios_data:
-            #     self.send_data(kubios_data)
             self.show_output(self.kubios_response)
             pass
         else:
