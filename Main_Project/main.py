@@ -260,11 +260,10 @@ class Analysis:
                         oled.fill_rect(0, 0, 128, 9, 1)
                         oled.fill_rect(0, 55, 128, 64, 1)
                         if len(PPI_array) > 3:
-                            current_HR = self.current_HR_calculator(PPI_array)
-                            print(f"Current HR: {current_HR}")  # Debug print
+                            mean_PPI = self.meanPPI_calculator(PPI_array)
+                            current_HR = self.meanHR_calculator(mean_PPI)
                             oled.text(f'HR:{current_HR}', 2, 1, 0)
                         else:
-                            print("Not enough data for HR calculation")  # Debug print
                             oled.text("HR: --", 2, 1, 0)
                         oled.text("SW1 to exit", 18, 56, 0)
                         oled.line(x2, 10, x2, 53, 0)
@@ -297,7 +296,8 @@ class Analysis:
                                                 interval = sample_index - previous_index
                                                 interval_ms = int(interval * 1000 / samplerate)
                                                 PPI_array.append(interval_ms)
-                                                print(f"PPI Array: {PPI_array}")  # Debug print
+                                                print(
+                                                    f"Interval added: {interval_ms}, PPI_array: {PPI_array}")  # Debugging
                                                 brightness = 5
                                                 led21.duty_u16(4000)
                                             previous_peak = sample_peak
