@@ -263,11 +263,10 @@ class Analysis:
                             oled.text("HR: --", 2, 1, 0)
                         oled.line(x2, 10, x2, 53, 0)
                         oled.line(x1, y1, x2, y2, 1)
+                        oled.text("SW1 to exit", 2, 56, 0)
                         oled.show()
                         x1 = x2 if x2 <= 127 else -1
                         y1 = y2
-                        oled.text("SW1 to exit", 2, 56, 0)
-                        oled.show()
 
                     # Signal processing - moving average
                     if subtract_old_sample:
