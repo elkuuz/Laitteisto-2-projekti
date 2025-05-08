@@ -231,6 +231,8 @@ class Analysis:
         y1 = 32
         m0 = 32768
         a = 0.1
+        disp_div = samplerate / 25
+        disp_count = 0
         # Ignore first 5 seconds for stabilization
         ignore_samples = 5 * samplerate
         capture_count = 0
@@ -246,9 +248,10 @@ class Analysis:
                     # Skip initial unstable period
                     if capture_count <= ignore_samples:
                         continue
-
+                    disp_count += 1
                     # Update display every 100ms
-                    if capture_count % (samplerate//10) == 0:
+                    if disp_count >= disp_div:
+                        disp_count = 0
                         m0 = (1 - a) * m0 + a * sample_val
                         y2 = max(
                             10, min(53, int(32 * (m0 - sample_val) * (1/14000) + 35)))
