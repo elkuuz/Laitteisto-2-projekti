@@ -1,6 +1,6 @@
 {
   "urls": [
-    ["test.py", "http://localhost:8000/test.py"],
+    ["main.py", "http://localhost:8000/Main_Project/main.py"],
     ["lib/filefifo.py", "http://localhost:8000/pico-lib/filefifo.py"],	
     ["lib/fifo.py", "http://localhost:8000/pico-lib/fifo.py"],
     ["lib/piotimer.py", "http://localhost:8000/pico-lib/piotimer.py"],
