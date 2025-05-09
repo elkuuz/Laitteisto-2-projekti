@@ -98,7 +98,7 @@ class Menu:
             print("Connecting... ")
             time.sleep(0.5)
             breakpoint += 1
-            if breakpoint >= 10:
+            if breakpoint >= 20:
                 oled.fill(0)
                 oled.text("No internet", 0, 15, 1)
                 oled.text("Kubios analysis", 0, 30, 1)
@@ -172,7 +172,7 @@ class Analysis:
     def __init__(self):
         self.min_bpm = 30
         self.max_bpm = 200
-
+        self.mqtt_client = None
     def meanPPI_calculator(self, data):
         if not data:  # Handle empty list
             return 0
@@ -478,6 +478,8 @@ class Analysis:
             }
             History().save_data(
                 f'{data_dict}')
+            self.connect_to_mqtt()
+            self.send_data(data_dict)
         elif kubios:
             kubios_data = {"id": 420, "type": "PPI", "data": PPI_array, "analysis": {"type": "readiness"}}
             kubios_data_json = ujson.dumps(kubios_data)
@@ -494,7 +496,26 @@ class Analysis:
         while SW1.value():
             pass
         time.sleep(0.5)  # Debounce
-
+        
+    def connect_to_mqtt(self):
+        try:
+            self.wlan = network.WLAN(network.STA_IF)
+            self.wlan.active(True)
+            self.wlan.connect(WIFI_SSID, WIFI_PASSWORD)
+            self.mqtt_client = MQTTClient("Analysis", "192.168.8.253", 21883)
+            self.mqtt_client.connect()
+            self.mqtt_client.subscribe("analysis-result")
+            print("Connected to MQTT successfully")
+        except Exception as e:
+            print(f"Failed to connect to MQTT: {e}")
+            
+    def send_data(self, data):
+        try:
+            message = ujson.dumps(data)
+            self.mqtt_client.publish("analysis-result", message)
+            print("Data sent to Kubios successfully")
+        except Exception as e:
+            print(f"Failed to send data: {e}")
 
 class History:
     def save_data(self, data):
