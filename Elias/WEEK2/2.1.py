@@ -31,7 +31,7 @@ signal = fifo.read(num_samples)
 slope = array.array('f', (signal[i+1] - signal[i] for i in range(len(signal) - 1)))
 
 # Identify peaks (where slope changes from positive to negative)
-peaks = array.array('i', (i+1 for i in range(len(slope) - 1) if slope[i] > 0 and slope[i+1] < 0))
+peaks = array.array('i', (i+1 for i in range(len(slope) - 1) if slope[i] >= 0 and slope[i+1] < 0))
 
 # Calculate peak-to-peak intervals
 peak_to_peak_intervals_samples = array.array('i', (peaks[i+1] - peaks[i] for i in range(len(peaks) - 1)))
